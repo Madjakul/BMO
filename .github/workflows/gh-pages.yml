@@ -1,0 +1,40 @@
+# Name of our workflow
+name: 'Build and Deploy GitHub Pages'
+
+# Event triggering the workflow
+on:
+  push:
+    branches:
+      - master # Event only triggered when pushing on the master branch
+jobs:
+  # Our job
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. We gather repository's content
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      # 2. Setting-up Python environment
+      - name: 'Set up Python'
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      # 3. Install dependencies
+      - name: 'Install Python Dependencies'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      # 4. Building Sphinx Doc
+      - name: 'Build Sphinx Doc'
+        run: |
+          cd docs && make html
+          cd ..
+      # 5. Deploying on GitHub Pages
+      - name: 'Deploy GitHub Pages'
+        uses: JamesIves/github-pages-deploy-action@3.7.1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: docs/_build/html/

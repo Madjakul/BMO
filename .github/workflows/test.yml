@@ -1,0 +1,32 @@
+# Name of our workflow
+name: 'Test Python Code'
+
+# Event triggering the workflow
+on:
+  push:
+    - dev # Event only triggered when pushing on the dev branch
+
+jobs:
+  # Our job
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. We gather repository's content
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      # 2. Setting-up Python environment
+      - name: 'Set up Python'
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      # 3. Install dependencies
+      - name: 'Install Python Dependencies'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      # 4. Run tests
+      - name: 'Run Tests'
+        run: |
+          pytest -v

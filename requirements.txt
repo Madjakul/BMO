@@ -1,0 +1,9 @@
+pytest
+sphinx
+sphinx-rtd-theme
+python-dotenv
+
+setuptools
+wheel
+torch
+spacy[cuda113]
