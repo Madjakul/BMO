@@ -85,7 +85,7 @@ class LMDataset(Dataset):
         """
         self.word_freqs = preprocessing.get_word_frequencies(self.corpus)
         self.alphabet = preprocessing.get_alphabet(self.word_freqs)
-        self.vocab = ["</unk>", "</pad>", "</eos>"] + self.alphabet.copy()
+        self.vocab = ["</unk>", "</pad>"] + self.alphabet.copy()
         self.splits = {word: [*word] for word in self.word_freqs.keys()}
         i = 0
         while True:
@@ -117,7 +117,9 @@ class LMDataset(Dataset):
             self.splitted_corpus.append(splitted_doc)
             self.encoded_corpus.append(encoded_doc)
             self.data.extend(
-                preprocessing.windowizer(encoded_doc, wsize=self.window_size)
+                preprocessing.windowizer(
+                    encoded_doc, self.vocab2ix, self.window_size
+                )
             )
 
     def tokenize(self, text: str):
@@ -174,7 +176,7 @@ class LMDataset(Dataset):
         return self.tokenize(text)
 
     def __len__(self):
-        return len(data)
+        return len(self.data)
 
     def __getitem__(self, idx):
         return self.data[idx]

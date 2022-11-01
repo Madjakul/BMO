@@ -144,7 +144,7 @@ def merge_pair(a: str, b: str, splits: dict, word_freqs: dict):
         splits[word] = split
     return splits
 
-def windowizer(doc: list, wsize=3):
+def windowizer(doc: list, vocab2ix: dict, wsize: int=3,):
     """Converts sequences to sliding-window pairs [1]_ .
 
     Parameters
@@ -153,6 +153,8 @@ def windowizer(doc: list, wsize=3):
         Sequence of symbols in the form of integers.
     wsize: ``int``
         Window size.
+    vocab2ix: ``dict``
+        Unique symbols and their integer.
 
     Returns
     -------
@@ -168,10 +170,12 @@ def windowizer(doc: list, wsize=3):
     out = []
     for i, symbol_int in enumerate(doc):
         target = symbol_int
-        window = [
-            i + j for j in range(-wsize, wsize + 1)\
-            if (i + j >= 0) & (i + j < len(doc)) & (j != 0)
-        ]
-        out += [(target, doc[idx]) for idx in window]
+        window = []
+        for j in range (-wsize, wsize + 1):
+            if i + j < 0 or i + j >= len(doc):
+                window.append(vocab2ix["</pad>"])
+            elif j != 0:
+                window.append(doc[i + j])
+        out += [(window, target)]
     return out
 
