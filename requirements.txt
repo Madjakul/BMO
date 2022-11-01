@@ -1,9 +1,5 @@
 pytest
 sphinx
-sphinx-rtd-theme
-python-dotenv
+sphinx_rtd_theme
 
-setuptools
-wheel
 torch
-spacy[cuda113]
