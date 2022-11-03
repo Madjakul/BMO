@@ -52,6 +52,6 @@ if __name__=="__main__":
             optimizer.step()
             total_loss += loss.data
         if epoch % args.update_rate == 0:
-            loss_avg = float(total_loss / len(train_data))
-            print(f"{epoch}/{EPOCH} loss{loss_avg:.2f}")
+            loss_avg = float(total_loss / len(dataset))
+            print(f"{epoch}/{args.epoch} loss{loss_avg:.2f}")
 
