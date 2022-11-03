@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bmo.utils.dataset &mdash; Byte-pair encoded language MOdel (BMO)  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> Byte-pair encoded language MOdel (BMO)
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../preprocessing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">LMDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../word_embedding.html">CBOW</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Byte-pair encoded language MOdel (BMO)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bmo.utils.dataset</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bmo.utils.dataset</h1><div class="highlight"><pre>
+<span></span><span class="c1"># utils/dataset.py</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">Dataset</span>
+
+<span class="kn">from</span> <span class="nn">bmo.utils</span> <span class="kn">import</span> <span class="n">preprocessing</span>
+
+
+<div class="viewcode-block" id="LMDataset"><a class="viewcode-back" href="../../../dataset.html#bmo.utils.dataset.LMDataset">[docs]</a><span class="k">class</span> <span class="nc">LMDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Custom dataset for language modeling.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    corpus: ``str``</span>
+<span class="sd">        Raw corpus in natural language.</span>
+<span class="sd">    window_size: ``int``</span>
+<span class="sd">        Window size.</span>
+<span class="sd">    device: ``str``</span>
+<span class="sd">        Device where the tensor are stored.</span>
+<span class="sd">    max_size: ``int``</span>
+<span class="sd">        Maximum size of the vocabulary.</span>
+<span class="sd">    max_iter: ``int``</span>
+<span class="sd">        Maximum number of iteration.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    corpus: ``str``</span>
+<span class="sd">        Raw corpus in natural language.</span>
+<span class="sd">    window_size: ``int``</span>
+<span class="sd">        Window size.</span>
+<span class="sd">    splitted_corpus: ``list``</span>
+<span class="sd">        Training corpus splitted and merged according to the merging rules.</span>
+<span class="sd">    encoded_corpus: ``list``</span>
+<span class="sd">        ``splitted_corpus`` as integers.</span>
+<span class="sd">    data: ``list``</span>
+<span class="sd">        List of data points as tuple of word and target word within a window</span>
+<span class="sd">        size.</span>
+<span class="sd">    vocab_frequencies: ``dict``</span>
+<span class="sd">        Tokens vocabulary and their frequency.</span>
+<span class="sd">    vocab: ``dict``</span>
+<span class="sd">        Unique symbols and their integer value.</span>
+<span class="sd">    device: ``str``</span>
+<span class="sd">        Device where the tensor are stored.</span>
+<span class="sd">    max_size: ``int``</span>
+<span class="sd">        Maximum size of the vocabulary.</span>
+<span class="sd">    max_iter: ``int``</span>
+<span class="sd">        Maximum number of iteration.</span>
+<span class="sd">    pair_stats: ``dict``</span>
+<span class="sd">        Symbol pairs with their frequency.</span>
+<span class="sd">    bpe_codes: ``dict``</span>
+<span class="sd">        Unique identifier of each pairs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">word_freqs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">alphabet</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">splits</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">pair_freqs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">vocab</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">merges</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">vocab2ix</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">splitted_corpus</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">encoded_corpus</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">corpus</span><span class="p">:</span> <span class="nb">list</span><span class="o">=</span><span class="p">[],</span> <span class="n">window_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
+            <span class="n">vocab_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">merging_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">corpus</span> <span class="o">=</span> <span class="n">corpus</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span> <span class="o">=</span> <span class="n">window_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vocab_size</span> <span class="o">=</span> <span class="n">vocab_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merging_size</span> <span class="o">=</span> <span class="n">merging_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">device</span>
+
+<div class="viewcode-block" id="LMDataset.build_vocab"><a class="viewcode-back" href="../../../dataset.html#bmo.utils.dataset.LMDataset.build_vocab">[docs]</a>    <span class="k">def</span> <span class="nf">build_vocab</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Uses the corpus to build merging rules and a vocabulary. Use the</span>
+<span class="sd">        defined rules to tokenize and encode the corpus in order to build the</span>
+<span class="sd">        training data.</span>
+
+<span class="sd">        Warnings</span>
+<span class="sd">        --------</span>
+<span class="sd">        This method shall only be used when no pre-trained paramaters have been</span>
+<span class="sd">        loaded into the class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">word_freqs</span> <span class="o">=</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">get_word_frequencies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">corpus</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alphabet</span> <span class="o">=</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">get_alphabet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">word_freqs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vocab</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;&lt;/unk&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;/pad&gt;&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alphabet</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">splits</span> <span class="o">=</span> <span class="p">{</span><span class="n">word</span><span class="p">:</span> <span class="p">[</span><span class="o">*</span><span class="n">word</span><span class="p">]</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">word_freqs</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pair_freqs</span> <span class="o">=</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">get_pair_freqs</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">word_freqs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">splits</span>
+            <span class="p">)</span>
+            <span class="n">best_pair</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">max_freq</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">pair</span><span class="p">,</span> <span class="n">freq</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pair_freqs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">max_freq</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">max_freq</span> <span class="o">&lt;</span> <span class="n">freq</span><span class="p">:</span>
+                    <span class="n">best_pair</span> <span class="o">=</span> <span class="n">pair</span>
+                    <span class="n">max_freq</span> <span class="o">=</span> <span class="n">freq</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">splits</span> <span class="o">=</span> <span class="n">preprocessing</span><span class="o">.</span><span class="n">merge_pair</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">best_pair</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">splits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">word_freqs</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merges</span><span class="p">[</span><span class="n">best_pair</span><span class="p">]</span> <span class="o">=</span> <span class="n">best_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">best_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vocab</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">best_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">best_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vocab_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocab</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vocab_size</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vocab2ix</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">word</span> <span class="k">for</span> <span class="n">word</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vocab</span><span class="p">)}</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">merging_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">merging_size</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">corpus</span><span class="p">:</span>
+            <span class="n">splitted_doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenize</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+            <span class="n">encoded_doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">splitted_doc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">splitted_corpus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">splitted_doc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoded_corpus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encoded_doc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">preprocessing</span><span class="o">.</span><span class="n">windowizer</span><span class="p">(</span>
+                    <span class="n">encoded_doc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vocab2ix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span>
+                <span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="LMDataset.tokenize"><a class="viewcode-back" href="../../../dataset.html#bmo.utils.dataset.LMDataset.tokenize">[docs]</a>    <span class="k">def</span> <span class="nf">tokenize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Apply BPE algorithm [1]_ to an input string.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        text: ``str``</span>
+<span class="sd">            Input string.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sum(splits, []): ``list``</span>
+<span class="sd">            List of symbols.</span>
+
+<span class="sd">        References</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ..  [1] Shibata Yusuke, Kida Takuya, Fukamachi Shuichi, Takeda Masayuki,</span>
+<span class="sd">            Shinohara Ayumi, Shinohara Takeshi. (1999). Byte Pair Encoding: A</span>
+<span class="sd">            Text Compression Scheme That Accelerates Pattern Matching.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">space_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;([^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]+)&quot;</span><span class="p">)</span> <span class="c1"># Match punctuation</span>
+        <span class="n">spaced_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">space_pattern</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot; \1 &quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>       <span class="c1"># Add space around punctuation</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">spaced_text</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">splits</span> <span class="o">=</span> <span class="p">[[</span><span class="o">*</span><span class="n">word</span><span class="p">]</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">pair</span><span class="p">,</span> <span class="n">merge</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">merges</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">split</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">splits</span><span class="p">):</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                        <span class="n">split</span> <span class="o">=</span> <span class="n">split</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">merge</span><span class="p">]</span> <span class="o">+</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="p">:]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">splits</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">split</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">splits</span><span class="p">,</span> <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="LMDataset.encode"><a class="viewcode-back" href="../../../dataset.html#bmo.utils.dataset.LMDataset.encode">[docs]</a>    <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokenized_text</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Express a list of symbols as integers.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        tokenized_text: ``list``</span>
+<span class="sd">            List of symbols from the ``_tokenized`` method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        encoded: ``list``</span>
+<span class="sd">            Tokenized text expressed as integers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">encoded</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vocab2ix</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokenized_text</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">encoded</span></div>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Madjakul.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

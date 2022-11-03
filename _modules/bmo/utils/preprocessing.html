@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>bmo.utils.preprocessing &mdash; Byte-pair encoded language MOdel (BMO)  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> Byte-pair encoded language MOdel (BMO)
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../preprocessing.html">Preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset.html">LMDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../word_embedding.html">CBOW</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Byte-pair encoded language MOdel (BMO)</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">bmo.utils.preprocessing</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for bmo.utils.preprocessing</h1><div class="highlight"><pre>
+<span></span><span class="c1"># utils/preprocessing.py</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">defaultdict</span>
+
+
+<div class="viewcode-block" id="get_word_frequencies"><a class="viewcode-back" href="../../../preprocessing.html#bmo.utils.preprocessing.get_word_frequencies">[docs]</a><span class="k">def</span> <span class="nf">get_word_frequencies</span><span class="p">(</span><span class="n">corpus</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the frequency of each word.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    corpus: ``str``</span>
+<span class="sd">        List of texts in natural language.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    word_freqs: ``dict``</span>
+<span class="sd">        Dictionnary of words and their frequency.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; corpus = [&quot;low low low low low lower lower newest newest newest newest</span>
+<span class="sd">    &gt;&gt;&gt;    newest newest widest widest widest happier happier&quot;]</span>
+<span class="sd">    &gt;&gt;&gt; word_freqs = get_word_freqs(corpus)</span>
+<span class="sd">    &gt;&gt;&gt; word_freqs</span>
+<span class="sd">    {&quot;low&quot;: 5,</span>
+<span class="sd">     &quot;lower&quot;: 2,</span>
+<span class="sd">     &quot;newest&quot;: 6,</span>
+<span class="sd">     &quot;hidest&quot;: 6,</span>
+<span class="sd">     &quot;widest&quot;: 3,</span>
+<span class="sd">     &quot;happier&quot;: 2}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">space_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;([^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]+)&quot;</span><span class="p">)</span> <span class="c1"># Match punctuation</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">corpus</span><span class="p">:</span>
+        <span class="n">spaced_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">space_pattern</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot; \1 &quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>   <span class="c1"># Add space around punctuation</span>
+        <span class="n">tokens</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">word</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">spaced_text</span><span class="o">.</span><span class="n">split</span><span class="p">()])</span>
+    <span class="n">word_freqs</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">word_freqs</span></div>
+
+<div class="viewcode-block" id="get_alphabet"><a class="viewcode-back" href="../../../preprocessing.html#bmo.utils.preprocessing.get_alphabet">[docs]</a><span class="k">def</span> <span class="nf">get_alphabet</span><span class="p">(</span><span class="n">word_freqs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the list of unique characters in the corpus.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    word_freqs: ``dict``</span>
+<span class="sd">        Dictionnary of words and their frequency.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    alphabet: ``list``</span>
+<span class="sd">        List of unique characters.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; alphabet = get_alphabet(word_freqs)</span>
+<span class="sd">    &gt;&gt;&gt; alphabet</span>
+<span class="sd">    [&#39;a&#39;, &#39;d&#39;, &#39;e&#39;, &#39;h&#39;, &#39;i&#39;, &#39;l&#39;, &#39;n&#39;, &#39;o&#39;, &#39;p&#39;, &#39;r&#39;, &#39;s&#39;, &#39;t&#39;, &#39;w&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">alphabet</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">word_freqs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">alphabet</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="o">*</span><span class="n">word</span><span class="p">])</span>
+    <span class="n">alphabet</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">alphabet</span><span class="p">))</span>
+    <span class="n">alphabet</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">alphabet</span></div>
+
+<div class="viewcode-block" id="get_pair_freqs"><a class="viewcode-back" href="../../../preprocessing.html#bmo.utils.preprocessing.get_pair_freqs">[docs]</a><span class="k">def</span> <span class="nf">get_pair_freqs</span><span class="p">(</span><span class="n">word_freqs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">splits</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the frequency of each symbol pairs.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    word_freqs: ``dict``</span>
+<span class="sd">        Dictionnary of words and their frequency.</span>
+<span class="sd">    splits: ``dict``</span>
+<span class="sd">        List of characters for each word in the vocabulary.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pair_freqs: ``dict``</span>
+<span class="sd">        Dictionary binding each pair of symbols to its frequency.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; splits = {word: [c for c in word] for word in word_freqs.keys()}</span>
+<span class="sd">    &gt;&gt;&gt; pair_freqs = get_pair_freqs(splits)</span>
+<span class="sd">    &gt;&gt;&gt; pair_freqs</span>
+<span class="sd">    {(&quot;l&quot;, &quot;o&quot;): 7,</span>
+<span class="sd">     (&quot;o&quot;, &quot;w&quot;): 7,</span>
+<span class="sd">     (&quot;w&quot;, &quot;e&quot;): 8,</span>
+<span class="sd">     (&quot;e&quot;, &quot;r&quot;): 4,</span>
+<span class="sd">     (&quot;n&quot;, &quot;e&quot;): 6,</span>
+<span class="sd">     (&quot;e&quot;, &quot;w&quot;): 6,</span>
+<span class="sd">     (&quot;e&quot;, &quot;s&quot;): 9,</span>
+<span class="sd">     (&quot;s&quot;, &quot;t&quot;): 9,</span>
+<span class="sd">     (&quot;w&quot;, &quot;i&quot;): 3,</span>
+<span class="sd">     (&quot;i&quot;, &quot;d&quot;): 3,</span>
+<span class="sd">     (&quot;d&quot;, &quot;e&quot;): 3,</span>
+<span class="sd">     (&quot;h&quot;, &quot;a&quot;): 2,</span>
+<span class="sd">     (&quot;a&quot;, &quot;p&quot;): 2,</span>
+<span class="sd">     (&quot;p&quot;, &quot;p&quot;): 2,</span>
+<span class="sd">     (&quot;p&quot;, &quot;i&quot;): 2,</span>
+<span class="sd">     (&quot;i&quot;, &quot;e&quot;): 2}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pair_freqs</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">word</span><span class="p">,</span> <span class="n">freq</span> <span class="ow">in</span> <span class="n">word_freqs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="n">word</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">pair</span> <span class="o">=</span> <span class="p">(</span><span class="n">split</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">pair_freqs</span><span class="p">[</span><span class="n">pair</span><span class="p">]</span> <span class="o">+=</span> <span class="n">freq</span>
+    <span class="k">return</span> <span class="n">pair_freqs</span></div>
+
+<div class="viewcode-block" id="merge_pair"><a class="viewcode-back" href="../../../preprocessing.html#bmo.utils.preprocessing.merge_pair">[docs]</a><span class="k">def</span> <span class="nf">merge_pair</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">splits</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">word_freqs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Merge the pair passed into the vocabulary and add it in the dictionary</span>
+<span class="sd">    of rules for merging.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    a: ``str``</span>
+<span class="sd">        First symbol.</span>
+<span class="sd">    b: ``str``</span>
+<span class="sd">        Second symbol.</span>
+<span class="sd">    splits: ``dict``</span>
+<span class="sd">        Dictionary of rules for merging.</span>
+<span class="sd">    word_freqs: ``dict``</span>
+<span class="sd">        Dictionary of words and their frequency.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    splits: ``dict``</span>
+<span class="sd">        Updated dictionary of tules for merging.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">word_freqs</span><span class="p">:</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="n">word</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">a</span> <span class="ow">and</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="p">:</span>
+                <span class="n">split</span> <span class="o">=</span> <span class="n">split</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">]</span> <span class="o">+</span> <span class="n">split</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">2</span> <span class="p">:]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">splits</span><span class="p">[</span><span class="n">word</span><span class="p">]</span> <span class="o">=</span> <span class="n">split</span>
+    <span class="k">return</span> <span class="n">splits</span></div>
+
+<div class="viewcode-block" id="windowizer"><a class="viewcode-back" href="../../../preprocessing.html#bmo.utils.preprocessing.windowizer">[docs]</a><span class="k">def</span> <span class="nf">windowizer</span><span class="p">(</span><span class="n">doc</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">vocab2ix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">wsize</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">3</span><span class="p">,):</span>
+    <span class="sd">&quot;&quot;&quot;Converts sequences to sliding-window pairs [1]_ .</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    doc: ``list``</span>
+<span class="sd">        Sequence of symbols in the form of integers.</span>
+<span class="sd">    wsize: ``int``</span>
+<span class="sd">        Window size.</span>
+<span class="sd">    vocab2ix: ``dict``</span>
+<span class="sd">        Unique symbols and their integer.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    out: ``list``</span>
+<span class="sd">        List of symbol pairs as integers.</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ..  [1] Implementing Word2Vec in PyTorch. (2021, October 21). Full Stack</span>
+<span class="sd">        Political Science.</span>
+<span class="sd">        https://muhark.github.io/python/ml/nlp/2021/10/21/word2vec-from-scratch.html</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">symbol_int</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">doc</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">symbol_int</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span> <span class="p">(</span><span class="o">-</span><span class="n">wsize</span><span class="p">,</span> <span class="n">wsize</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">+</span> <span class="n">j</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="p">):</span>
+                <span class="n">window</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vocab2ix</span><span class="p">[</span><span class="s2">&quot;&lt;/pad&gt;&quot;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">j</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">window</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">doc</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span><span class="p">])</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">window</span><span class="p">,</span> <span class="n">target</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Madjakul.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
