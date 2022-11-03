@@ -1,4 +1,7 @@
 pytest
+pynvim
+
 sphinx
 sphinx-rtd-theme
+numpy
 torch

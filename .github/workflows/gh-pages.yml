@@ -30,8 +30,6 @@ jobs:
       - name: 'Build Sphinx Doc'
         run: |
           cd docs && make html
-          mkdir docs
-          mv _build/html/* docs
           cd ..
       # 5. Deploying on GitHub Pages
       - name: 'Deploy GitHub Pages'
@@ -39,4 +37,4 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: docs/
+          FOLDER: docs/_build/html
